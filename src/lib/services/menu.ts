@@ -98,7 +98,11 @@ export async function getBusinessSettings(): Promise<BusinessSettings> {
       return initialSettings;
     }
 
-    return data as BusinessSettings;
+    return {
+      ...initialSettings,
+      ...data,
+      delivery_fee: data.delivery_fee ? Number(data.delivery_fee) : initialSettings.delivery_fee,
+    } as BusinessSettings;
   } catch (err) {
     console.error("Error fetching business settings:", err);
     return initialSettings;
@@ -119,8 +123,13 @@ export async function adminGetAllProducts(): Promise<Product[]> {
     .select("*, category:categories(*)")
     .order("order_num", { ascending: true });
 
-  if (error) throw error;
-  return data as Product[];
+  if (error) {
+    if (error.code === "42P01") {
+      throw new Error("Las tablas aún no existen en Supabase. Debes ejecutar el archivo supabase/schema.sql en el SQL Editor de Supabase.");
+    }
+    throw error;
+  }
+  return (data || []) as Product[];
 }
 
 export async function adminGetAllCategories(): Promise<Category[]> {
@@ -133,8 +142,13 @@ export async function adminGetAllCategories(): Promise<Category[]> {
     .select("*")
     .order("order_num", { ascending: true });
 
-  if (error) throw error;
-  return data as Category[];
+  if (error) {
+    if (error.code === "42P01") {
+      throw new Error("Las tablas aún no existen en Supabase. Debes ejecutar el archivo supabase/schema.sql en el SQL Editor de Supabase.");
+    }
+    throw error;
+  }
+  return (data || []) as Category[];
 }
 
 export async function adminGetAllToppings(): Promise<Topping[]> {
@@ -147,8 +161,13 @@ export async function adminGetAllToppings(): Promise<Topping[]> {
     .select("*")
     .order("order_num", { ascending: true });
 
-  if (error) throw error;
-  return data as Topping[];
+  if (error) {
+    if (error.code === "42P01") {
+      throw new Error("Las tablas aún no existen en Supabase. Debes ejecutar el archivo supabase/schema.sql en el SQL Editor de Supabase.");
+    }
+    throw error;
+  }
+  return (data || []) as Topping[];
 }
 
 export async function adminUpsertProduct(product: Partial<Product>): Promise<Product> {
@@ -156,7 +175,6 @@ export async function adminUpsertProduct(product: Partial<Product>): Promise<Pro
     throw new Error("Supabase no está configurado aún en las variables de entorno.");
   }
 
-  // Clean out joined relation if present
   const { category, ...cleanProduct } = product;
 
   const { data, error } = await supabase
@@ -261,4 +279,40 @@ export async function adminUploadProductImage(file: File): Promise<string> {
     .getPublicUrl(filePath);
 
   return publicUrlData.publicUrl;
+}
+
+/**
+ * Seed initial menu directly from client if tables exist but are empty
+ */
+export async function adminSeedDatabase(): Promise<{ success: boolean; message: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error("Supabase no está configurado en las variables de entorno.");
+  }
+
+  // 1. Insert Categories
+  const { error: catErr } = await supabase
+    .from("categories")
+    .upsert(initialCategories, { onConflict: "slug" });
+  if (catErr) throw new Error("Error en categorías: " + catErr.message);
+
+  // 2. Insert Products
+  const cleanProds = initialProducts.map(({ category, ...rest }) => rest);
+  const { error: prodErr } = await supabase
+    .from("products")
+    .upsert(cleanProds, { onConflict: "id" });
+  if (prodErr) throw new Error("Error en productos: " + prodErr.message);
+
+  // 3. Insert Toppings
+  const { error: topErr } = await supabase
+    .from("toppings")
+    .upsert(initialToppings, { onConflict: "id" });
+  if (topErr) throw new Error("Error en toppings: " + topErr.message);
+
+  // 4. Insert Business Settings
+  const { error: setErr } = await supabase
+    .from("business_settings")
+    .upsert(initialSettings, { onConflict: "id" });
+  if (setErr) throw new Error("Error en ajustes: " + setErr.message);
+
+  return { success: true, message: "¡Menú y datos iniciales cargados con éxito en Supabase!" };
 }

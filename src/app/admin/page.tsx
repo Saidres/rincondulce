@@ -17,8 +17,15 @@ import {
   adminDeleteTopping,
   adminUpdateSettings,
   adminUploadProductImage,
+  adminSeedDatabase,
   getBusinessSettings,
 } from "@/lib/services/menu";
+import {
+  initialSettings,
+  initialProducts,
+  initialCategories,
+  initialToppings,
+} from "@/lib/mock-data";
 import { formatCOP } from "@/lib/formatters";
 import Logo from "@/components/Logo";
 import {
@@ -57,8 +64,10 @@ export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [toppings, setToppings] = useState<Topping[]>([]);
-  const [settings, setSettings] = useState<BusinessSettings | null>(null);
+  const [settings, setSettings] = useState<BusinessSettings>(initialSettings);
   const [loadingData, setLoadingData] = useState(false);
+  const [tableMissingError, setTableMissingError] = useState<string | null>(null);
+  const [seedingLoading, setSeedingLoading] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Product Modal State
@@ -108,26 +117,67 @@ export default function AdminPage() {
 
   const showFeedback = (type: "success" | "error", text: string) => {
     setFeedbackMsg({ type, text });
-    setTimeout(() => setFeedbackMsg(null), 4000);
+    setTimeout(() => setFeedbackMsg(null), 5000);
   };
 
   const loadDashboardData = async () => {
     setLoadingData(true);
+    setTableMissingError(null);
     try {
-      const [prods, cats, tops, sets] = await Promise.all([
+      const [prodsRes, catsRes, topsRes, setsRes] = await Promise.allSettled([
         adminGetAllProducts(),
         adminGetAllCategories(),
         adminGetAllToppings(),
         getBusinessSettings(),
       ]);
-      setProducts(prods);
-      setCategories(cats);
-      setToppings(tops);
-      setSettings(sets);
+
+      if (prodsRes.status === "fulfilled") {
+        setProducts(prodsRes.value);
+      } else {
+        const msg = prodsRes.reason?.message || "";
+        if (msg.includes("no existen") || msg.includes("does not exist") || msg.includes("42P01")) {
+          setTableMissingError(
+            "Las tablas de Supabase aún no existen. Debes ejecutar el archivo supabase/schema.sql en el SQL Editor de Supabase."
+          );
+        } else {
+          showFeedback("error", msg);
+        }
+      }
+
+      if (catsRes.status === "fulfilled") {
+        setCategories(catsRes.value);
+      }
+
+      if (topsRes.status === "fulfilled") {
+        setToppings(topsRes.value);
+      }
+
+      if (setsRes.status === "fulfilled" && setsRes.value) {
+        setSettings(setsRes.value);
+      }
     } catch (err: any) {
       showFeedback("error", err.message || "Error al cargar datos.");
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  const handleSeedMenu = async () => {
+    setSeedingLoading(true);
+    try {
+      const res = await adminSeedDatabase();
+      showFeedback("success", res.message);
+      await loadDashboardData();
+    } catch (err: any) {
+      const msg = err.message || "";
+      showFeedback("error", msg);
+      if (msg.includes("no existen") || msg.includes("does not exist") || msg.includes("42P01") || msg.includes("relation")) {
+        setTableMissingError(
+          "Las tablas de Supabase aún no han sido creadas. Ve al SQL Editor en Supabase y ejecuta el código de supabase/schema.sql."
+        );
+      }
+    } finally {
+      setSeedingLoading(false);
     }
   };
 
@@ -384,6 +434,16 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleSeedMenu}
+              disabled={seedingLoading}
+              className="px-3 py-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-amber-400/30"
+              title="Cargar el menú inicial a Supabase"
+            >
+              <Sparkles size={14} className="text-amber-300" />
+              <span>{seedingLoading ? "Cargando..." : "Cargar Menú Inicial"}</span>
+            </button>
+
             <Link
               href="/"
               target="_blank"
@@ -487,6 +547,33 @@ export default function AdminPage() {
 
       {/* Tab Contents */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
+        {/* Table Missing Alert Banner */}
+        {tableMissingError && (
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-5 text-amber-900 space-y-3 shadow-md">
+            <div className="flex items-center gap-2 font-bold text-base text-amber-950">
+              <AlertCircle size={22} className="text-amber-700 shrink-0" />
+              <span>Paso pendiente en Supabase: Crear las tablas de la base de datos</span>
+            </div>
+            <p className="text-xs sm:text-sm text-amber-900 leading-relaxed">
+              Ya conectaste Supabase con Vercel, pero las tablas del menú aún no existen en la base de datos. Para crearlas en 1 minuto:
+            </p>
+            <ol className="text-xs sm:text-sm list-decimal list-inside space-y-1.5 font-medium bg-white/80 p-4 rounded-2xl border border-amber-200">
+              <li>Entra a tu proyecto en <strong>supabase.com</strong>.</li>
+              <li>En la barra lateral izquierda, haz clic en <strong>SQL Editor</strong> (icono de terminal <code>&gt;_</code>).</li>
+              <li>Abre el archivo <strong><code>supabase/schema.sql</code></strong> de este proyecto, copia todo su contenido y pégalo allí.</li>
+              <li>Haz clic en el botón verde <strong>Run</strong> (Correr).</li>
+            </ol>
+            <div className="pt-2 flex flex-wrap items-center gap-3">
+              <button
+                onClick={loadDashboardData}
+                className="px-5 py-2.5 bg-amber-800 hover:bg-amber-900 active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow transition-all"
+              >
+                🔄 Ya ejecuté el SQL, Recargar
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ============================================================== */}
         {/* TAB 1: PRODUCTOS */}
         {/* ============================================================== */}
@@ -502,27 +589,59 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              <button
-                onClick={() => {
-                  setEditingProduct({
-                    name: "",
-                    price: 13000,
-                    category_id: categories[0]?.id || "",
-                    is_available: true,
-                    is_hidden: false,
-                    badge_text: "NUEVO",
-                  });
-                  setIsProductModalOpen(true);
-                }}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#7A1E1E] hover:bg-[#5C1515] active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all"
-              >
-                <Plus size={16} />
-                <span>Nuevo Producto</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {products.length === 0 && (
+                  <button
+                    onClick={handleSeedMenu}
+                    disabled={seedingLoading}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all"
+                  >
+                    <Sparkles size={16} />
+                    <span>{seedingLoading ? "Cargando..." : "Cargar Menú Inicial"}</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    setEditingProduct({
+                      name: "",
+                      price: 13000,
+                      category_id: categories[0]?.id || "",
+                      is_available: true,
+                      is_hidden: false,
+                      badge_text: "NUEVO",
+                    });
+                    setIsProductModalOpen(true);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#7A1E1E] hover:bg-[#5C1515] active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all"
+                >
+                  <Plus size={16} />
+                  <span>Nuevo Producto</span>
+                </button>
+              </div>
             </div>
 
-            {/* Product Cards List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Empty State or Product Cards List */}
+            {products.length === 0 ? (
+              <div className="bg-white rounded-3xl p-8 sm:p-12 text-center border-2 border-dashed border-[#7A1E1E]/20 space-y-4 max-w-lg mx-auto shadow-sm my-6">
+                <span className="text-5xl block">🧇</span>
+                <h3 className="font-display text-2xl font-bold uppercase text-[#7A1E1E]">
+                  Tu Base de Datos en Supabase está vacía
+                </h3>
+                <p className="text-xs text-[#2B120E]/70 max-w-sm mx-auto leading-relaxed">
+                  Aún no hay productos guardados en Supabase. Si ya ejecutaste el SQL en Supabase, haz clic abajo para cargar el menú inicial de Rincón Dulce (Waffles, Bowls, Helados y Toppings) con un solo toque:
+                </p>
+                <button
+                  onClick={handleSeedMenu}
+                  disabled={seedingLoading}
+                  className="px-6 py-3.5 bg-[#7A1E1E] hover:bg-[#5C1515] active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-all inline-flex items-center gap-2"
+                >
+                  <Sparkles size={16} />
+                  <span>{seedingLoading ? "Guardando en Supabase..." : "📥 Cargar Menú Completo a Supabase"}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {products.map((product) => (
                 <div
                   key={product.id}
@@ -600,6 +719,7 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 
