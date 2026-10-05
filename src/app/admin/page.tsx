@@ -92,6 +92,10 @@ export default function AdminPage() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
 
+  // Topping Modal State
+  const [isToppingModalOpen, setIsToppingModalOpen] = useState(false);
+  const [editingTopping, setEditingTopping] = useState<Partial<Topping> | null>(null);
+
   // Check auth session
   useEffect(() => {
     async function checkAuth() {
@@ -395,6 +399,107 @@ export default function AdminPage() {
       showFeedback("error", err.message || "Error al subir la imagen");
     } finally {
       setUploadingImage(false);
+    }
+  };
+
+  // Category Actions
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory?.name) {
+      showFeedback("error", "El nombre de la categoría es obligatorio.");
+      return;
+    }
+
+    const slug =
+      editingCategory.slug?.trim() ||
+      editingCategory.name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+    try {
+      const saved = await adminUpsertCategory({
+        ...editingCategory,
+        slug,
+      });
+
+      setCategories((prev) => {
+        const index = prev.findIndex((c) => c.id === saved.id);
+        if (index >= 0) {
+          const clone = [...prev];
+          clone[index] = saved;
+          return clone;
+        }
+        return [...prev, saved];
+      });
+
+      setIsCategoryModalOpen(false);
+      setEditingCategory(null);
+      showFeedback("success", `Categoría "${saved.name}" guardada con éxito.`);
+    } catch (err: any) {
+      showFeedback("error", err.message || "Error al guardar la categoría.");
+    }
+  };
+
+  const handleDeleteCategory = async (id: string, name: string) => {
+    if (!confirm(`¿Seguro que deseas eliminar la categoría "${name}"? Los productos vinculados podrían quedar sin categoría.`)) {
+      return;
+    }
+
+    try {
+      await adminDeleteCategory(id);
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+      showFeedback("success", `Categoría "${name}" eliminada.`);
+    } catch (err: any) {
+      showFeedback("error", err.message || "Error al eliminar la categoría.");
+    }
+  };
+
+  // Topping Actions
+  const handleSaveTopping = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTopping?.name) {
+      showFeedback("error", "El nombre del topping es obligatorio.");
+      return;
+    }
+
+    try {
+      const saved = await adminUpsertTopping({
+        ...editingTopping,
+        price: Number(editingTopping.price) || 2000,
+        is_available: editingTopping.is_available ?? true,
+      });
+
+      setToppings((prev) => {
+        const index = prev.findIndex((t) => t.id === saved.id);
+        if (index >= 0) {
+          const clone = [...prev];
+          clone[index] = saved;
+          return clone;
+        }
+        return [...prev, saved];
+      });
+
+      setIsToppingModalOpen(false);
+      setEditingTopping(null);
+      showFeedback("success", `Topping "${saved.name}" guardado.`);
+    } catch (err: any) {
+      showFeedback("error", err.message || "Error al guardar el topping.");
+    }
+  };
+
+  const handleDeleteTopping = async (id: string, name: string) => {
+    if (!confirm(`¿Seguro que deseas eliminar el topping "${name}"?`)) {
+      return;
+    }
+
+    try {
+      await adminDeleteTopping(id);
+      setToppings((prev) => prev.filter((t) => t.id !== id));
+      showFeedback("success", `Topping "${name}" eliminado.`);
+    } catch (err: any) {
+      showFeedback("error", err.message || "Error al eliminar el topping.");
     }
   };
 
@@ -885,9 +990,17 @@ export default function AdminPage() {
                         setEditingCategory(cat);
                         setIsCategoryModalOpen(true);
                       }}
-                      className="p-1.5 text-gray-500 hover:text-black"
+                      className="p-1.5 text-gray-500 hover:text-[#7A1E1E] hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Editar categoría"
                     >
                       <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                      className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      title="Eliminar categoría"
+                    >
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
@@ -901,13 +1014,31 @@ export default function AdminPage() {
         {/* ============================================================== */}
         {activeTab === "toppings" && (
           <div className="space-y-4">
-            <div>
-              <h2 className="font-display text-2xl font-bold uppercase text-[#7A1E1E]">
-                Toppings Adicionales
-              </h2>
-              <p className="text-xs text-gray-500">
-                Toppings disponibles para que los clientes agreguen a sus waffles, helados y bowls.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="font-display text-2xl font-bold uppercase text-[#7A1E1E]">
+                  Toppings Adicionales
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Toppings disponibles para que los clientes agreguen a sus waffles, helados y bowls.
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setEditingTopping({
+                    name: "",
+                    price: 2000,
+                    is_available: true,
+                    order_num: toppings.length + 1,
+                  });
+                  setIsToppingModalOpen(true);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#7A1E1E] hover:bg-[#5C1515] active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all shrink-0"
+              >
+                <Plus size={16} />
+                <span>Nuevo Topping</span>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -916,8 +1047,8 @@ export default function AdminPage() {
                   key={topping.id}
                   className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between gap-3"
                 >
-                  <div>
-                    <h3 className="font-display text-base font-bold text-[#7A1E1E]">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-display text-base font-bold text-[#7A1E1E] truncate">
                       {topping.name}
                     </h3>
                     <p className="text-xs font-black text-amber-600">
@@ -925,29 +1056,50 @@ export default function AdminPage() {
                     </p>
                   </div>
 
-                  <button
-                    onClick={async () => {
-                      try {
-                        const updated = await adminUpsertTopping({
-                          ...topping,
-                          is_available: !topping.is_available,
-                        });
-                        setToppings((prev) =>
-                          prev.map((t) => (t.id === updated.id ? updated : t))
-                        );
-                        showFeedback("success", `Topping actualizado.`);
-                      } catch (err: any) {
-                        showFeedback("error", err.message);
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                      topping.is_available
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-rose-100 text-rose-800"
-                    }`}
-                  >
-                    {topping.is_available ? "Disponible" : "Agotado"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const updated = await adminUpsertTopping({
+                            ...topping,
+                            is_available: !topping.is_available,
+                          });
+                          setToppings((prev) =>
+                            prev.map((t) => (t.id === updated.id ? updated : t))
+                          );
+                          showFeedback("success", `Topping actualizado.`);
+                        } catch (err: any) {
+                          showFeedback("error", err.message);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                        topping.is_available
+                          ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                          : "bg-rose-100 text-rose-800 hover:bg-rose-200"
+                      }`}
+                    >
+                      {topping.is_available ? "Disponible" : "Agotado"}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setEditingTopping(topping);
+                        setIsToppingModalOpen(true);
+                      }}
+                      className="p-1.5 text-gray-500 hover:text-black hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Editar topping"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteTopping(topping.id, topping.name)}
+                      className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      title="Eliminar topping"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1463,6 +1615,210 @@ export default function AdminPage() {
                   className="px-5 py-2.5 bg-[#7A1E1E] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md"
                 >
                   Guardar Producto
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* CATEGORY EDIT/CREATE MODAL */}
+      {/* ============================================================== */}
+      {isCategoryModalOpen && editingCategory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <h3 className="font-display text-2xl font-bold uppercase text-[#7A1E1E]">
+              {editingCategory.id ? "Editar Categoría" : "Nueva Categoría"}
+            </h3>
+
+            <form onSubmit={handleSaveCategory} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
+                  Nombre de la Categoría
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editingCategory.name || ""}
+                  onChange={(e) =>
+                    setEditingCategory({
+                      ...editingCategory,
+                      name: e.target.value,
+                    })
+                  }
+                  placeholder="Ej: Waffles, Bowls, Bebidas..."
+                  className="w-full text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
+                    Ícono (Emoji)
+                  </label>
+                  <input
+                    type="text"
+                    value={editingCategory.icon || "🧇"}
+                    onChange={(e) =>
+                      setEditingCategory({
+                        ...editingCategory,
+                        icon: e.target.value,
+                      })
+                    }
+                    placeholder="🧇"
+                    className="w-full text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E] text-center text-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
+                    Orden
+                  </label>
+                  <input
+                    type="number"
+                    value={editingCategory.order_num ?? 1}
+                    onChange={(e) =>
+                      setEditingCategory({
+                        ...editingCategory,
+                        order_num: Number(e.target.value),
+                      })
+                    }
+                    className="w-full text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
+                  Descripción Corta
+                </label>
+                <textarea
+                  rows={2}
+                  value={editingCategory.description || ""}
+                  onChange={(e) =>
+                    setEditingCategory({
+                      ...editingCategory,
+                      description: e.target.value,
+                    })
+                  }
+                  placeholder="Ej: Waffles dorados y crujientes recién horneados."
+                  className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCategoryModalOpen(false);
+                    setEditingCategory(null);
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-black"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-[#7A1E1E] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md hover:bg-[#5C1515]"
+                >
+                  Guardar Categoría
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TOPPING EDIT/CREATE MODAL */}
+      {/* ============================================================== */}
+      {isToppingModalOpen && editingTopping && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <h3 className="font-display text-2xl font-bold uppercase text-[#7A1E1E]">
+              {editingTopping.id ? "Editar Topping" : "Nuevo Topping"}
+            </h3>
+
+            <form onSubmit={handleSaveTopping} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
+                  Nombre del Topping
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editingTopping.name || ""}
+                  onChange={(e) =>
+                    setEditingTopping({
+                      ...editingTopping,
+                      name: e.target.value,
+                    })
+                  }
+                  placeholder="Ej: Nutella Extra, Queso Rallado, Chantilly..."
+                  className="w-full text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
+                  Precio Adicional (COP)
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={editingTopping.price ?? 2000}
+                  onChange={(e) =>
+                    setEditingTopping({
+                      ...editingTopping,
+                      price: Number(e.target.value),
+                    })
+                  }
+                  placeholder="2000"
+                  className="w-full text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
+                  Disponibilidad
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditingTopping({
+                      ...editingTopping,
+                      is_available: !editingTopping.is_available,
+                    })
+                  }
+                  className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold uppercase transition-all ${
+                    editingTopping.is_available
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                      : "bg-rose-100 text-rose-800 border border-rose-300"
+                  }`}
+                >
+                  {editingTopping.is_available ? "✓ Disponible para pedidos" : "✗ Agotado"}
+                </button>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsToppingModalOpen(false);
+                    setEditingTopping(null);
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-black"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-[#7A1E1E] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md hover:bg-[#5C1515]"
+                >
+                  Guardar Topping
                 </button>
               </div>
             </form>
