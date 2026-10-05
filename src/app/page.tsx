@@ -16,7 +16,8 @@ import {
   getBusinessSettings,
 } from "@/lib/services/menu";
 
-export const revalidate = 60; // Revalidate every 60 seconds (ISR)
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function HomePage() {
   const [categories, products, toppings, settings] = await Promise.all([
