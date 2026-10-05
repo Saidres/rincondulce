@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: var(--font-sans), system-ui, sans-serif;
+    --font-display: var(--font-display), "Arial Black", sans-serif;
+    --font-serif: var(--font-serif), Georgia, serif;
+
+    --brand-wine: #7A1E1E;
+    --brand-wine-dark: #501111;
+    --brand-wine-light: #9B2828;
+    --brand-cream: #FFF7EE;
+    --brand-cream-card: #FFFFFF;
+    --brand-chocolate: #2B120E;
+    --brand-strawberry: #E12239;
+    --brand-whatsapp: #25D366;
+  }
+
+  body {
+    background-color: var(--brand-cream);
+    color: var(--brand-chocolate);
+    font-family: var(--font-sans);
+  }
+}
+
+/* Custom Display Fonts */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+
+.font-serif-bistro {
+  font-family: var(--font-serif);
+}
+
+/* Starburst / Price Burst Badge (Like Instagram stories stickers) */
+.price-burst {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  background: #E12239;
+  color: #FFFFFF;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  transform: rotate(-3deg);
+  box-shadow: 0 4px 12px rgba(122, 30, 30, 0.35);
+  border-radius: 9999px;
+  border: 2px dashed #FFF;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.price-burst:hover {
+  transform: rotate(0deg) scale(1.05);
+}
+
+/* Jagged sticker stamp badge */
+.stamp-badge {
+  background: #7A1E1E;
+  color: #FFF7EE;
+  padding: 0.3rem 0.75rem;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: 4px;
+  box-shadow: 2px 2px 0px #2B120E;
+}
+
+/* Kinetic typography watermark behind product cards */
+.watermark-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-12deg);
+  font-family: var(--font-display);
+  font-size: 4.5rem;
+  line-height: 0.85;
+  color: rgba(122, 30, 30, 0.04);
+  pointer-events: none;
+  white-space: nowrap;
+  user-select: none;
+  z-index: 0;
+  font-weight: 900;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #FFF7EE;
+}
+::-webkit-scrollbar-thumb {
+  background: #C4A482;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #7A1E1E;
+}
