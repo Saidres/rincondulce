@@ -9,28 +9,41 @@ interface HeaderProps {
   isOpenNow?: boolean;
   scheduleText?: string;
   whatsappNumber?: string;
+  addressText?: string;
+  mapsUrl?: string;
 }
 
 export default function Header({
   isOpenNow = true,
-  scheduleText = "Martes a Domingo: 2:00 PM - 9:00 PM",
-  whatsappNumber = "573180000000",
+  scheduleText = "Martes a Viernes: 3:00 PM - 8:00 PM | Sábados, Domingos y Festivos: 11:00 AM - 8:00 PM",
+  whatsappNumber = "573136436725",
+  addressText = "Cra. 31c No. 18-44 Las Cuadras",
+  mapsUrl = "https://maps.google.com/?q=Cra.+31c+No.+18-44+Las+Cuadras,+Pasto,+Nari%C3%B1o",
 }: HeaderProps) {
   const { totalCount, setIsCartOpen } = useCart();
 
   return (
     <header className="sticky top-0 z-40 bg-[#FFF7EE]/95 backdrop-blur-md border-b border-[#7A1E1E]/10 transition-all">
       {/* Top micro-bar with schedule & location */}
-      <div className="bg-[#7A1E1E] text-[#FFF7EE] px-4 py-1 text-xs font-medium flex items-center justify-between">
+      <div className="bg-[#7A1E1E] text-[#FFF7EE] px-4 py-1 text-xs font-medium flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 truncate">
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           <span className="truncate">
-            {isOpenNow ? "¡Abierto hoy!" : "Cerrado por ahora"} • {scheduleText}
+            {isOpenNow ? "¡Abierto hoy!" : "Cerrado"} • {scheduleText}
           </span>
         </div>
-        <div className="hidden sm:flex items-center gap-1 opacity-90 shrink-0">
-          <MapPin size={12} />
-          <span>Pasto, Nariño</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 opacity-90 hover:opacity-100 bg-white/15 hover:bg-white/25 px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-all shadow-sm"
+            title="Abrir ubicación en Google Maps"
+          >
+            <MapPin size={12} className="text-amber-300" />
+            <span className="hidden md:inline">{addressText}</span>
+            <span className="underline decoration-dotted underline-offset-2">Ver en Maps ↗</span>
+          </a>
         </div>
       </div>
 

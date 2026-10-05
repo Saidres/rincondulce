@@ -36,6 +36,11 @@ export interface Topping {
   order_num: number;
 }
 
+export interface NeighborhoodTariff {
+  barrio: string;
+  precio: number;
+}
+
 export interface BusinessSettings {
   id: string;
   business_name: string;
@@ -49,6 +54,8 @@ export interface BusinessSettings {
   delivery_zones: string;
   delivery_fee: number;
   address_text?: string | null;
+  maps_url?: string | null;
+  neighborhood_tariffs?: NeighborhoodTariff[];
   is_open_now: boolean;
 }
 

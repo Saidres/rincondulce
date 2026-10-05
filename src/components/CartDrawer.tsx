@@ -6,14 +6,18 @@ import { useCart } from "@/context/CartContext";
 import { formatCOP, buildCartWhatsAppUrl } from "@/lib/formatters";
 import { X, Trash2, Plus, Minus, MessageCircle, ShoppingBag, ArrowRight } from "lucide-react";
 
+import { NeighborhoodTariff } from "@/lib/types";
+
 interface CartDrawerProps {
   whatsappNumber: string;
   deliveryFee?: number;
+  neighborhoodTariffs?: NeighborhoodTariff[];
 }
 
 export default function CartDrawer({
   whatsappNumber,
   deliveryFee = 4000,
+  neighborhoodTariffs = [],
 }: CartDrawerProps) {
   const {
     items,
@@ -26,12 +30,36 @@ export default function CartDrawer({
     totalPrice,
   } = useCart();
 
+  const [selectedBarrio, setSelectedBarrio] = useState<string>(
+    neighborhoodTariffs.length > 0 ? neighborhoodTariffs[0].barrio : "Las Cuadras"
+  );
+  const [customBarrio, setCustomBarrio] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [customerName, setCustomerName] = useState("");
   const [customerNote, setCustomerNote] = useState("");
+
+  // Determine delivery fee based on selected barrio
+  const currentTariff = neighborhoodTariffs.find((t) => t.barrio === selectedBarrio);
+  const currentDeliveryFee =
+    selectedBarrio === "other"
+      ? deliveryFee
+      : currentTariff
+      ? currentTariff.precio
+      : deliveryFee;
 
   if (!isCartOpen) return null;
 
   const handleCheckoutWhatsApp = () => {
-    const url = buildCartWhatsAppUrl(whatsappNumber, items, customerNote, deliveryFee);
+    const finalBarrio = selectedBarrio === "other" ? (customBarrio || "Otro barrio") : selectedBarrio;
+    const url = buildCartWhatsAppUrl(
+      whatsappNumber,
+      items,
+      customerNote,
+      currentDeliveryFee,
+      finalBarrio,
+      customerAddress,
+      customerName
+    );
     window.open(url, "_blank");
   };
 
@@ -175,22 +203,104 @@ export default function CartDrawer({
                 </div>
               ))}
 
-              {/* Note field */}
-              <div className="pt-2">
-                <label
-                  htmlFor="customer-note"
-                  className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1"
-                >
-                  📝 Indicaciones o notas para el domicilio:
-                </label>
-                <textarea
-                  id="customer-note"
-                  rows={2}
-                  value={customerNote}
-                  onChange={(e) => setCustomerNote(e.target.value)}
-                  placeholder="Ej: Salsa de chocolate aparte, timbre no funciona, llevar cambio de $50.000..."
-                  className="w-full text-xs p-2.5 rounded-xl border border-[#7A1E1E]/20 bg-white focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
-                />
+              {/* Delivery Destination & Neighborhood Selector */}
+              <div className="pt-3 border-t border-[#7A1E1E]/15 space-y-3 bg-[#FFF3DE]/60 p-3 rounded-2xl">
+                <div>
+                  <label
+                    htmlFor="select-barrio"
+                    className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1 flex items-center justify-between"
+                  >
+                    <span>📍 ¿A qué barrio de Pasto va tu pedido?</span>
+                    <span className="text-[11px] font-black text-[#2B120E] bg-white px-2 py-0.5 rounded-md border border-[#7A1E1E]/20">
+                      Envío: {formatCOP(currentDeliveryFee)}
+                    </span>
+                  </label>
+                  <select
+                    id="select-barrio"
+                    value={selectedBarrio}
+                    onChange={(e) => setSelectedBarrio(e.target.value)}
+                    className="w-full text-xs font-semibold p-2.5 rounded-xl border border-[#7A1E1E]/30 bg-white text-[#2B120E] focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                  >
+                    {neighborhoodTariffs.map((t) => (
+                      <option key={t.barrio} value={t.barrio}>
+                        {t.barrio} — {formatCOP(t.precio)}
+                      </option>
+                    ))}
+                    <option value="other">Otro barrio / Consultar tarifa en WhatsApp</option>
+                  </select>
+                </div>
+
+                {selectedBarrio === "other" && (
+                  <div>
+                    <label
+                      htmlFor="custom-barrio"
+                      className="block text-[11px] font-bold text-[#7A1E1E] uppercase tracking-wider mb-1"
+                    >
+                      Escribe el nombre de tu barrio:
+                    </label>
+                    <input
+                      id="custom-barrio"
+                      type="text"
+                      value={customBarrio}
+                      onChange={(e) => setCustomBarrio(e.target.value)}
+                      placeholder="Ej: Buesaquillo, Catambuco, San Ignacio..."
+                      className="w-full text-xs p-2 rounded-xl border border-[#7A1E1E]/20 bg-white focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label
+                      htmlFor="customer-name"
+                      className="block text-[11px] font-bold text-[#7A1E1E] uppercase tracking-wider mb-1"
+                    >
+                      Tu Nombre:
+                    </label>
+                    <input
+                      id="customer-name"
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Ej: Camilo"
+                      className="w-full text-xs p-2 rounded-xl border border-[#7A1E1E]/20 bg-white focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="customer-address"
+                      className="block text-[11px] font-bold text-[#7A1E1E] uppercase tracking-wider mb-1"
+                    >
+                      Dirección exacta:
+                    </label>
+                    <input
+                      id="customer-address"
+                      type="text"
+                      value={customerAddress}
+                      onChange={(e) => setCustomerAddress(e.target.value)}
+                      placeholder="Ej: Cra 31c #18-44 Apt 201"
+                      className="w-full text-xs p-2 rounded-xl border border-[#7A1E1E]/20 bg-white focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                    />
+                  </div>
+                </div>
+
+                {/* Note field */}
+                <div>
+                  <label
+                    htmlFor="customer-note"
+                    className="block text-[11px] font-bold text-[#7A1E1E] uppercase tracking-wider mb-1"
+                  >
+                    📝 Indicaciones especiales:
+                  </label>
+                  <textarea
+                    id="customer-note"
+                    rows={2}
+                    value={customerNote}
+                    onChange={(e) => setCustomerNote(e.target.value)}
+                    placeholder="Ej: Salsa de chocolate aparte, timbre no funciona..."
+                    className="w-full text-xs p-2 rounded-xl border border-[#7A1E1E]/20 bg-white focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                  />
+                </div>
               </div>
             </>
           )}
@@ -205,17 +315,19 @@ export default function CartDrawer({
                 <span className="font-bold text-[#2B120E]">{formatCOP(totalPrice)}</span>
               </div>
               <div className="flex justify-between items-center text-[#7A1E1E]">
-                <span className="font-semibold">🛵 Domicilio en Pasto:</span>
-                <span className="font-bold">{formatCOP(deliveryFee)}</span>
+                <span className="font-semibold">
+                  🛵 Domicilio Pasto ({selectedBarrio === "other" ? (customBarrio || "Otro") : selectedBarrio}):
+                </span>
+                <span className="font-bold">{formatCOP(currentDeliveryFee)}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
               <span className="font-display text-sm uppercase font-bold text-[#7A1E1E]">
-                Total con Domicilio:
+                Total a Pagar:
               </span>
               <span className="font-display text-2xl font-black text-[#2B120E]">
-                {formatCOP(totalPrice + deliveryFee)}
+                {formatCOP(totalPrice + currentDeliveryFee)}
               </span>
             </div>
 

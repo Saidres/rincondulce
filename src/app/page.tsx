@@ -34,6 +34,8 @@ export default async function HomePage() {
         isOpenNow={settings.is_open_now}
         scheduleText={settings.schedule_text}
         whatsappNumber={settings.whatsapp_number}
+        addressText={settings.address_text || "Cra. 31c No. 18-44 Las Cuadras"}
+        mapsUrl={settings.maps_url || "https://maps.google.com/?q=Cra.+31c+No.+18-44+Las+Cuadras,+Pasto,+Nari%C3%B1o"}
       />
 
       {/* Hero Section */}
@@ -58,12 +60,15 @@ export default async function HomePage() {
       {/* How To Order */}
       <HowToOrder />
 
-      {/* Delivery Zones & Hours */}
+      {/* Delivery Zones, Hours & Google Maps */}
       <DeliverySection
         scheduleText={settings.schedule_text}
         deliveryZones={settings.delivery_zones}
         whatsappNumber={settings.whatsapp_number}
         deliveryFee={settings.delivery_fee}
+        addressText={settings.address_text || "Cra. 31c No. 18-44 Las Cuadras, San Juan de Pasto"}
+        mapsUrl={settings.maps_url || "https://maps.google.com/?q=Cra.+31c+No.+18-44+Las+Cuadras,+Pasto,+Nari%C3%B1o"}
+        neighborhoodTariffs={settings.neighborhood_tariffs || []}
       />
 
       {/* Instagram Gallery & Social proof */}
@@ -81,6 +86,7 @@ export default async function HomePage() {
       <CartDrawer
         whatsappNumber={settings.whatsapp_number}
         deliveryFee={settings.delivery_fee}
+        neighborhoodTariffs={settings.neighborhood_tariffs || []}
       />
     </main>
   );

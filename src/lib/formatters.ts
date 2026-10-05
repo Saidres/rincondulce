@@ -62,7 +62,10 @@ export function buildCartWhatsAppUrl(
   phone: string,
   items: CartItem[],
   customerNote?: string,
-  deliveryFee: number = 4000
+  deliveryFee: number = 4000,
+  selectedBarrio?: string,
+  customerAddress?: string,
+  customerName?: string
 ): string {
   const cleanPhone = phone.replace(/\D/g, "");
   let message = `¡Hola Rincón Dulce! 👋 Quiero hacer el siguiente pedido:\n\n`;
@@ -85,7 +88,8 @@ export function buildCartWhatsAppUrl(
   message += `\n📦 *Subtotal productos:* ${formatCOP(subtotal)}`;
   
   if (deliveryFee > 0) {
-    message += `\n🛵 *Domicilio en Pasto:* ${formatCOP(deliveryFee)}`;
+    const barrioLabel = selectedBarrio ? ` (${selectedBarrio})` : "";
+    message += `\n🛵 *Domicilio en Pasto${barrioLabel}:* ${formatCOP(deliveryFee)}`;
     message += `\n💵 *Total con domicilio:* ${formatCOP(subtotal + deliveryFee)}`;
   } else {
     message += `\n💵 *Total a pagar:* ${formatCOP(subtotal)}`;
@@ -96,9 +100,9 @@ export function buildCartWhatsAppUrl(
   }
 
   message += `\n\n📍 *Datos para el Domicilio (Pasto):*`;
-  message += `\n- Nombre: `;
-  message += `\n- Dirección exacta: `;
-  message += `\n- Barrio: `;
+  message += `\n- Barrio: ${selectedBarrio || ""}`;
+  message += `\n- Dirección exacta: ${customerAddress || ""}`;
+  message += `\n- Nombre: ${customerName || ""}`;
   message += `\n- Medio de pago (Nequi / Daviplata / Efectivo): `;
 
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;

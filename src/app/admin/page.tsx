@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
-import { Product, Category, Topping, BusinessSettings } from "@/lib/types";
+import { Product, Category, Topping, BusinessSettings, NeighborhoodTariff } from "@/lib/types";
 import {
   adminGetAllProducts,
   adminGetAllCategories,
@@ -25,7 +25,9 @@ import {
   initialProducts,
   initialCategories,
   initialToppings,
+  initialNeighborhoodTariffs,
 } from "@/lib/mock-data";
+import { parseNeighborhoodExcel, exportTariffsToExcel } from "@/lib/excel-importer";
 import { formatCOP } from "@/lib/formatters";
 import Logo from "@/components/Logo";
 import {
@@ -46,6 +48,11 @@ import {
   ExternalLink,
   Save,
   ArrowLeft,
+  Bike,
+  FileSpreadsheet,
+  Download,
+  Search,
+  MapPin,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -60,11 +67,17 @@ export default function AdminPage() {
   const [isSignUp, setIsSignUp] = useState(false);
 
   // Admin Dashboard State
-  const [activeTab, setActiveTab] = useState<"products" | "categories" | "toppings" | "settings">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "categories" | "toppings" | "settings" | "tariffs">("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [toppings, setToppings] = useState<Topping[]>([]);
   const [settings, setSettings] = useState<BusinessSettings>(initialSettings);
+  const [tariffsList, setTariffsList] = useState<NeighborhoodTariff[]>(initialNeighborhoodTariffs);
+  const [tariffsSearch, setTariffsSearch] = useState("");
+  const [newBarrioName, setNewBarrioName] = useState("");
+  const [newBarrioPrice, setNewBarrioPrice] = useState(4000);
+  const [excelLoading, setExcelLoading] = useState(false);
+  const [excelMessage, setExcelMessage] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(false);
   const [tableMissingError, setTableMissingError] = useState<string | null>(null);
   const [seedingLoading, setSeedingLoading] = useState(false);
@@ -154,12 +167,92 @@ export default function AdminPage() {
 
       if (setsRes.status === "fulfilled" && setsRes.value) {
         setSettings(setsRes.value);
+        if (setsRes.value.neighborhood_tariffs && setsRes.value.neighborhood_tariffs.length > 0) {
+          setTariffsList(setsRes.value.neighborhood_tariffs);
+        }
       }
     } catch (err: any) {
       showFeedback("error", err.message || "Error al cargar datos.");
     } finally {
       setLoadingData(false);
     }
+  };
+
+  // Tariff Handlers (Excel upload & manual)
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setExcelLoading(true);
+    setExcelMessage(null);
+
+    const result = await parseNeighborhoodExcel(file);
+    setExcelLoading(false);
+
+    if (result.success && result.data.length > 0) {
+      setTariffsList(result.data);
+      setExcelMessage(`✅ ¡Excelente! Se leyeron ${result.data.length} barrios y tarifas desde el Excel. Haz clic en "Guardar Tarifas en Supabase" para aplicar los cambios.`);
+      showFeedback("success", `Se cargaron ${result.data.length} barrios del Excel.`);
+    } else {
+      setExcelMessage(`⚠️ ${result.error || "No se pudo leer el archivo Excel."}`);
+      showFeedback("error", result.error || "Error al procesar el archivo Excel.");
+    }
+
+    // Reset file input so user can re-upload if needed
+    e.target.value = "";
+  };
+
+  const handleSaveTariffs = async (listToSave = tariffsList) => {
+    try {
+      const updated = await adminUpdateSettings({
+        ...settings,
+        neighborhood_tariffs: listToSave,
+      });
+      setSettings(updated);
+      setTariffsList(updated.neighborhood_tariffs || listToSave);
+      showFeedback("success", `¡Tarifas de ${listToSave.length} barrios guardadas con éxito en Supabase!`);
+    } catch (err: any) {
+      showFeedback("error", err.message || "Error al guardar tarifas.");
+    }
+  };
+
+  const handleAddSingleTariff = () => {
+    if (!newBarrioName.trim()) {
+      showFeedback("error", "Escribe el nombre del barrio.");
+      return;
+    }
+
+    const cleanName = newBarrioName.trim();
+    const existingIndex = tariffsList.findIndex(
+      (t) => t.barrio.toLowerCase() === cleanName.toLowerCase()
+    );
+
+    let updated: NeighborhoodTariff[];
+    if (existingIndex >= 0) {
+      updated = [...tariffsList];
+      updated[existingIndex] = { barrio: cleanName, precio: Number(newBarrioPrice) || 4000 };
+    } else {
+      updated = [...tariffsList, { barrio: cleanName, precio: Number(newBarrioPrice) || 4000 }];
+      updated.sort((a, b) => a.barrio.localeCompare(b.barrio));
+    }
+
+    setTariffsList(updated);
+    setNewBarrioName("");
+    setNewBarrioPrice(4000);
+    handleSaveTariffs(updated);
+  };
+
+  const handleDeleteTariff = (barrioName: string) => {
+    const updated = tariffsList.filter((t) => t.barrio !== barrioName);
+    setTariffsList(updated);
+    handleSaveTariffs(updated);
+  };
+
+  const handlePriceChange = (barrioName: string, newPrice: number) => {
+    const updated = tariffsList.map((t) =>
+      t.barrio === barrioName ? { ...t, precio: newPrice } : t
+    );
+    setTariffsList(updated);
   };
 
   const handleSeedMenu = async () => {
@@ -541,6 +634,18 @@ export default function AdminPage() {
           >
             <Settings size={15} />
             <span>Ajustes Negocio</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("tariffs")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+              activeTab === "tariffs"
+                ? "bg-[#7A1E1E] text-white shadow-sm"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            <Bike size={15} />
+            <span>Tarifas Domicilio / Excel ({tariffsList.length})</span>
           </button>
         </div>
       </div>
@@ -986,6 +1091,44 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
+                    📍 Dirección Física del Local (Pasto)
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.address_text || ""}
+                    onChange={(e) =>
+                      setSettings({ ...settings, address_text: e.target.value })
+                    }
+                    placeholder="Cra. 31c No. 18-44 Las Cuadras, San Juan de Pasto"
+                    className="w-full text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                  />
+                  <span className="text-[10px] text-gray-500">
+                    Se muestra en la barra superior, en la sección de entrega y en el pie de página.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
+                    Enlace de Google Maps
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.maps_url || ""}
+                    onChange={(e) =>
+                      setSettings({ ...settings, maps_url: e.target.value })
+                    }
+                    placeholder="https://maps.google.com/?q=..."
+                    className="w-full text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                  />
+                  <span className="text-[10px] text-gray-500">
+                    Al hacer clic en "Ver en Maps", llevará a los clientes directamente a tu ubicación.
+                  </span>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 py-3 px-6 bg-[#7A1E1E] hover:bg-[#5C1515] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all"
@@ -994,6 +1137,175 @@ export default function AdminPage() {
                 <span>Guardar Cambios</span>
               </button>
             </form>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB 5: TARIFAS DE DOMICILIO POR BARRIO (EXCEL) */}
+        {/* ============================================================== */}
+        {activeTab === "tariffs" && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="font-display text-2xl font-bold uppercase text-[#7A1E1E]">
+                  Tarifas de Domicilio por Barrio
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Sube el Excel de la empresa de mensajería para actualizar todos los precios de Pasto al instante.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => exportTariffsToExcel(tariffsList)}
+                  className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-bold text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all"
+                >
+                  <Download size={15} />
+                  <span>Descargar Excel</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSaveTariffs()}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#7A1E1E] hover:bg-[#5C1515] active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all"
+                >
+                  <Save size={15} />
+                  <span>Guardar en Supabase</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Excel Uploader Card */}
+            <div className="bg-white rounded-3xl p-6 border-2 border-dashed border-[#7A1E1E]/30 space-y-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+                  <FileSpreadsheet size={28} />
+                </div>
+                <div className="flex-1 text-center sm:text-left space-y-1">
+                  <h3 className="font-display text-base font-bold uppercase text-gray-900">
+                    Cargar Archivo Excel de Envíos (.xlsx o .csv)
+                  </h3>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Si la empresa de domicilios te envía una hoja de cálculo con nuevos precios, selecciónala aquí. El sistema detecta automáticamente columnas como "Barrio" y "Tarifa/Precio".
+                  </p>
+                </div>
+                <label className="cursor-pointer px-5 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all shrink-0 inline-flex items-center gap-2">
+                  <Upload size={16} />
+                  <span>{excelLoading ? "Procesando..." : "Seleccionar Excel"}</span>
+                  <input
+                    type="file"
+                    accept=".xlsx, .xls, .csv"
+                    className="hidden"
+                    onChange={handleExcelUpload}
+                    disabled={excelLoading}
+                  />
+                </label>
+              </div>
+
+              {excelMessage && (
+                <div className="p-3 bg-[#FFF7EE] border border-[#7A1E1E]/20 rounded-xl text-xs font-medium text-[#2B120E] flex items-center justify-between">
+                  <span>{excelMessage}</span>
+                  <button
+                    onClick={() => handleSaveTariffs()}
+                    className="ml-3 px-3 py-1 bg-[#7A1E1E] text-white text-[11px] font-bold rounded-lg uppercase shrink-0"
+                  >
+                    Guardar Ahora
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Add Barrio Manually */}
+            <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex flex-col sm:flex-row items-center gap-3">
+              <span className="text-xs font-bold uppercase text-[#7A1E1E] shrink-0">
+                + Agregar o Modificar Barrio:
+              </span>
+              <input
+                type="text"
+                placeholder="Nombre del Barrio (ej: Anganoy)"
+                value={newBarrioName}
+                onChange={(e) => setNewBarrioName(e.target.value)}
+                className="flex-1 text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E] w-full"
+              />
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <input
+                  type="number"
+                  placeholder="Precio COP"
+                  value={newBarrioPrice}
+                  onChange={(e) => setNewBarrioPrice(Number(e.target.value))}
+                  className="w-28 text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddSingleTariff}
+                  className="px-4 py-2.5 bg-[#7A1E1E] hover:bg-[#5C1515] text-white font-bold text-xs uppercase rounded-xl transition-all shrink-0"
+                >
+                  Agregar
+                </button>
+              </div>
+            </div>
+
+            {/* Neighborhoods Table */}
+            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden space-y-3 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-2 w-full sm:w-72 relative">
+                  <Search size={16} className="absolute left-3 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar barrio en Pasto..."
+                    value={tariffsSearch}
+                    onChange={(e) => setTariffsSearch(e.target.value)}
+                    className="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                  />
+                </div>
+                <span className="text-xs font-bold text-gray-500">
+                  {tariffsList.length} barrios activos en la tienda
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[500px] overflow-y-auto pr-1">
+                {tariffsList
+                  .filter((t) =>
+                    t.barrio.toLowerCase().includes(tariffsSearch.toLowerCase())
+                  )
+                  .map((t) => (
+                    <div
+                      key={t.barrio}
+                      className="p-3 bg-[#FFF7EE]/60 rounded-2xl border border-[#7A1E1E]/15 flex items-center justify-between gap-2 shadow-2xs"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-bold text-[#2B120E] block truncate">
+                          📍 {t.barrio}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <input
+                          type="number"
+                          value={t.precio}
+                          onChange={(e) =>
+                            handlePriceChange(t.barrio, Number(e.target.value))
+                          }
+                          onBlur={() => handleSaveTariffs()}
+                          className="w-20 text-xs font-black text-[#7A1E1E] p-1.5 bg-white border border-gray-200 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTariff(t.barrio)}
+                          className="p-1.5 text-gray-400 hover:text-rose-600 rounded-lg transition-colors"
+                          title="Eliminar barrio"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                <span>💡 Puedes editar los precios directamente en las casillas. Al salir del campo se guardan automáticamente.</span>
+              </div>
+            </div>
           </div>
         )}
       </main>

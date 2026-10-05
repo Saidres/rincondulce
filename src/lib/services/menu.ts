@@ -5,6 +5,7 @@ import {
   initialProducts,
   initialToppings,
   initialSettings,
+  initialNeighborhoodTariffs,
 } from "../mock-data";
 
 /**
@@ -98,10 +99,27 @@ export async function getBusinessSettings(): Promise<BusinessSettings> {
       return initialSettings;
     }
 
+    let tariffs = initialNeighborhoodTariffs;
+    if (data.delivery_zones) {
+      try {
+        const parsed = JSON.parse(data.delivery_zones);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          tariffs = parsed;
+        }
+      } catch {
+        // Text fallback
+      }
+    }
+    if (Array.isArray(data.neighborhood_tariffs) && data.neighborhood_tariffs.length > 0) {
+      tariffs = data.neighborhood_tariffs;
+    }
+
     return {
       ...initialSettings,
       ...data,
       delivery_fee: data.delivery_fee ? Number(data.delivery_fee) : initialSettings.delivery_fee,
+      neighborhood_tariffs: tariffs,
+      maps_url: data.maps_url || initialSettings.maps_url,
     } as BusinessSettings;
   } catch (err) {
     console.error("Error fetching business settings:", err);
@@ -249,14 +267,25 @@ export async function adminUpdateSettings(settings: Partial<BusinessSettings>): 
     throw new Error("Supabase no está configurado.");
   }
 
+  const { neighborhood_tariffs, ...cleanSettings } = settings;
+  const payload: any = { ...cleanSettings, id: "main" };
+
+  if (neighborhood_tariffs && Array.isArray(neighborhood_tariffs)) {
+    payload.delivery_zones = JSON.stringify(neighborhood_tariffs);
+  }
+
   const { data, error } = await supabase
     .from("business_settings")
-    .upsert({ ...settings, id: "main" })
+    .upsert(payload)
     .select()
     .single();
 
   if (error) throw error;
-  return data as BusinessSettings;
+
+  return {
+    ...data,
+    neighborhood_tariffs: neighborhood_tariffs || initialNeighborhoodTariffs,
+  } as BusinessSettings;
 }
 
 export async function adminUploadProductImage(file: File): Promise<string> {

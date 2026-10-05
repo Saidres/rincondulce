@@ -2,35 +2,28 @@ import React from "react";
 import { Clock, MapPin, CreditCard, Bike, MessageCircle } from "lucide-react";
 import { formatCOP } from "@/lib/formatters";
 
+import { NeighborhoodTariff } from "@/lib/types";
+
 interface DeliverySectionProps {
   scheduleText?: string;
   deliveryZones?: string;
   whatsappNumber?: string;
   deliveryFee?: number;
+  addressText?: string;
+  mapsUrl?: string;
+  neighborhoodTariffs?: NeighborhoodTariff[];
 }
 
 export default function DeliverySection({
-  scheduleText = "Martes a Domingo: 2:00 PM - 9:00 PM",
-  deliveryZones = "Zona urbana de Pasto: Centro, Maridiaz, Pandiaco, Morasurco, Tamasagra, Palermo, Chapal, Torobajo y alrededores.",
-  whatsappNumber = "573180000000",
+  scheduleText = "Martes a Viernes: 3:00 PM - 8:00 PM | Sábados, Domingos y Festivos: 11:00 AM - 8:00 PM",
+  deliveryZones = "Zona urbana de Pasto: Las Cuadras, Centro, Maridiaz, Pandiaco, Morasurco, Tamasagra, Palermo, Chapal, Torobajo y alrededores.",
+  whatsappNumber = "573136436725",
   deliveryFee = 4000,
+  addressText = "Cra. 31c No. 18-44 Las Cuadras, San Juan de Pasto",
+  mapsUrl = "https://maps.google.com/?q=Cra.+31c+No.+18-44+Las+Cuadras,+Pasto,+Nari%C3%B1o",
+  neighborhoodTariffs = [],
 }: DeliverySectionProps) {
   const cleanPhone = whatsappNumber.replace(/\D/g, "");
-
-  const zonesList = [
-    "Centro",
-    "Maridiaz",
-    "Pandiaco",
-    "Morasurco",
-    "Tamasagra",
-    "Palermo",
-    "Chapal",
-    "Torobajo",
-    "Fatima",
-    "San Ignacio",
-    "Bomboná",
-    "Y más...",
-  ];
 
   return (
     <section id="delivery" className="py-16 bg-[#FFF2E0] border-b border-[#7A1E1E]/15">
@@ -99,24 +92,61 @@ export default function DeliverySection({
               </div>
             </div>
 
-            {/* Zonas Tags */}
-            <div className="bg-white p-5 rounded-2xl border border-[#7A1E1E]/15 shadow-sm space-y-3">
-              <div className="flex items-center gap-2 text-[#7A1E1E]">
-                <MapPin size={20} />
-                <h3 className="font-display text-lg font-bold uppercase">Barrios de Cobertura</h3>
+            {/* Dirección & Google Maps */}
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border-2 border-[#7A1E1E]/20 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#7A1E1E]/10 flex items-center justify-center shrink-0 text-[#7A1E1E] mt-0.5">
+                  <MapPin size={22} />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-[#7A1E1E] uppercase tracking-wider block">
+                    Punto Físico en Pasto
+                  </span>
+                  <h4 className="font-display text-base sm:text-lg font-bold text-[#2B120E]">
+                    {addressText}
+                  </h4>
+                  <span className="text-xs text-[#2B120E]/70 block">
+                    San Juan de Pasto, Nariño
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {zonesList.map((zone) => (
+
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#7A1E1E] hover:bg-[#5C1515] active:scale-95 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all shrink-0 w-full sm:w-auto justify-center"
+              >
+                <MapPin size={15} className="text-amber-300" />
+                <span>Cómo Llegar en Maps ↗</span>
+              </a>
+            </div>
+
+            {/* Zonas y Tarifas Tags */}
+            <div className="bg-white p-5 rounded-2xl border border-[#7A1E1E]/15 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[#7A1E1E]">
+                  <Bike size={20} />
+                  <h3 className="font-display text-lg font-bold uppercase">Tarifas por Barrio en Pasto</h3>
+                </div>
+                <span className="text-xs font-semibold text-gray-500">
+                  {neighborhoodTariffs.length} barrios registrados
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+                {neighborhoodTariffs.map((t) => (
                   <span
-                    key={zone}
-                    className="px-3 py-1 bg-[#FFF7EE] border border-[#7A1E1E]/15 text-[#7A1E1E] text-xs font-semibold rounded-full"
+                    key={t.barrio}
+                    className="px-3 py-1 bg-[#FFF7EE] border border-[#7A1E1E]/15 text-[#7A1E1E] text-xs font-semibold rounded-full flex items-center gap-1.5 shadow-2xs"
                   >
-                    📍 {zone}
+                    <span>📍 {t.barrio}:</span>
+                    <strong className="text-[#2B120E] font-black">{formatCOP(t.precio)}</strong>
                   </span>
                 ))}
               </div>
               <p className="text-xs text-[#2B120E]/70 pt-1">
-                ¿Vives en otra zona de Pasto? Escríbenos a WhatsApp para consultar la tarifa de domicilio.
+                💡 Al agregar tus productos al carrito, puedes elegir tu barrio para calcular el valor exacto de tu envío antes de pedir por WhatsApp.
               </p>
             </div>
           </div>
