@@ -145,13 +145,30 @@ export default function AdminPage() {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        showFeedback("success", "Cuenta creada. Revisa tu correo o inicia sesión.");
-        setIsSignUp(false);
+
+        if (data.session) {
+          setSessionUser(data.session.user);
+          showFeedback("success", "¡Cuenta creada y sesión iniciada!");
+        } else {
+          // Intenta login inmediato automático
+          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (!signInErr && signInData.session) {
+            setSessionUser(signInData.session.user);
+            showFeedback("success", "¡Bienvenido a Rincón Dulce Admin!");
+          } else {
+            showFeedback("success", "Cuenta creada. Ya puedes iniciar sesión con tu clave.");
+            setIsSignUp(false);
+          }
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        setSessionUser(data.user);
         showFeedback("success", "¡Bienvenido a Rincón Dulce Admin!");
       }
     } catch (err: any) {
