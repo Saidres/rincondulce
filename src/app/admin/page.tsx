@@ -195,8 +195,9 @@ export default function AdminPage() {
 
     if (result.success && result.data.length > 0) {
       setTariffsList(result.data);
-      setExcelMessage(`✅ ¡Excelente! Se leyeron ${result.data.length} barrios y tarifas desde el Excel. Haz clic en "Guardar Tarifas en Supabase" para aplicar los cambios.`);
-      showFeedback("success", `Se cargaron ${result.data.length} barrios del Excel.`);
+      const sheetDetail = result.sheetName ? ` (hoja "${result.sheetName}")` : "";
+      setExcelMessage(`✅ ¡Excelente! Se leyeron ${result.data.length} barrios y tarifas${sheetDetail} desde el Excel. Haz clic en "Guardar en Supabase" para aplicar los cambios.`);
+      showFeedback("success", `Se cargaron ${result.data.length} barrios${sheetDetail} del Excel.`);
     } else {
       setExcelMessage(`⚠️ ${result.error || "No se pudo leer el archivo Excel."}`);
       showFeedback("error", result.error || "Error al procesar el archivo Excel.");

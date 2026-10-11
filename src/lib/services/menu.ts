@@ -274,16 +274,31 @@ export async function adminUpdateSettings(settings: Partial<BusinessSettings>): 
     payload.delivery_zones = JSON.stringify(neighborhood_tariffs);
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("business_settings")
     .upsert(payload)
     .select()
     .single();
 
+  // Si la tabla remota en Supabase aún no tiene la columna maps_url, reintentar sin ella
+  if (error && (error.message?.includes("maps_url") || error.details?.includes("maps_url") || (error as any).hint?.includes("maps_url"))) {
+    console.warn("La columna 'maps_url' no existe en 'business_settings'. Reintentando sin maps_url...");
+    const { maps_url: _discardMaps, ...fallbackPayload } = payload;
+    const retry = await supabase
+      .from("business_settings")
+      .upsert(fallbackPayload)
+      .select()
+      .single();
+
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error) throw error;
 
   return {
     ...data,
+    maps_url: settings.maps_url ?? data?.maps_url ?? initialSettings.maps_url,
     neighborhood_tariffs: neighborhood_tariffs || initialNeighborhoodTariffs,
   } as BusinessSettings;
 }
@@ -338,9 +353,24 @@ export async function adminSeedDatabase(): Promise<{ success: boolean; message: 
   if (topErr) throw new Error("Error en toppings: " + topErr.message);
 
   // 4. Insert Business Settings
-  const { error: setErr } = await supabase
+  const { neighborhood_tariffs: _tariffs, ...cleanInitialSettings } = initialSettings;
+  const payloadSettings: any = {
+    ...cleanInitialSettings,
+    delivery_zones: JSON.stringify(initialNeighborhoodTariffs),
+  };
+
+  let { error: setErr } = await supabase
     .from("business_settings")
-    .upsert(initialSettings, { onConflict: "id" });
+    .upsert(payloadSettings, { onConflict: "id" });
+
+  if (setErr && (setErr.message?.includes("maps_url") || setErr.details?.includes("maps_url") || (setErr as any).hint?.includes("maps_url"))) {
+    delete payloadSettings.maps_url;
+    const retry = await supabase
+      .from("business_settings")
+      .upsert(payloadSettings, { onConflict: "id" });
+    setErr = retry.error;
+  }
+
   if (setErr) throw new Error("Error en ajustes: " + setErr.message);
 
   return { success: true, message: "¡Menú y datos iniciales cargados con éxito en Supabase!" };
