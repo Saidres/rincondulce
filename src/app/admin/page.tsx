@@ -1160,7 +1160,7 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
-                    🛵 Tarifa de Domicilio en Pasto (COP)
+                    🛵 Tarifa Base de Domicilio (COP)
                   </label>
                   <input
                     type="number"
@@ -1175,24 +1175,45 @@ export default function AdminPage() {
                     className="w-full text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
                   />
                   <span className="text-[10px] text-gray-500">
-                    Valor estándar que se sumará al subtotal del carrito y en el mensaje de WhatsApp.
+                    Tarifa por defecto si el cliente no selecciona un barrio específico.
                   </span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
-                    Horario de Atención
+                    🥡 Costo de Empaque (COP)
                   </label>
                   <input
-                    type="text"
-                    value={settings.schedule_text}
+                    type="number"
+                    value={settings.packaging_fee ?? 1000}
                     onChange={(e) =>
-                      setSettings({ ...settings, schedule_text: e.target.value })
+                      setSettings({
+                        ...settings,
+                        packaging_fee: Number(e.target.value),
+                      })
                     }
-                    placeholder="Martes a Domingo: 2:00 PM - 9:00 PM"
+                    placeholder="1000"
                     className="w-full text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
                   />
+                  <span className="text-[10px] text-gray-500">
+                    Costo adicional ($1.000) sumado automáticamente a cada pedido de domicilio.
+                  </span>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#7A1E1E] uppercase tracking-wider mb-1">
+                  Horario de Atención
+                </label>
+                <input
+                  type="text"
+                  value={settings.schedule_text}
+                  onChange={(e) =>
+                    setSettings({ ...settings, schedule_text: e.target.value })
+                  }
+                  placeholder="Martes a Domingo: 2:00 PM - 9:00 PM"
+                  className="w-full text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7A1E1E]"
+                />
               </div>
 
               <div>

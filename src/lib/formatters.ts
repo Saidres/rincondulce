@@ -19,7 +19,8 @@ export function buildSingleProductWhatsAppUrl(
   product: Product,
   selectedOption?: string,
   selectedToppings?: Topping[],
-  deliveryFee: number = 4000
+  deliveryFee: number = 4000,
+  packagingFee: number = 1000
 ): string {
   const cleanPhone = phone.replace(/\D/g, "");
   let message = `¡Hola Rincón Dulce! 👋 Vi su menú web y quiero pedir:\n\n`;
@@ -39,9 +40,14 @@ export function buildSingleProductWhatsAppUrl(
 
   message += ` - ${formatCOP(productTotal)}`;
   
-  if (deliveryFee > 0) {
-    message += `\n🛵 *Domicilio en Pasto:* ${formatCOP(deliveryFee)}`;
-    message += `\n💰 *Total a pagar:* ${formatCOP(productTotal + deliveryFee)}`;
+  if (deliveryFee > 0 || packagingFee > 0) {
+    if (packagingFee > 0) {
+      message += `\n🥡 *Empaque:* ${formatCOP(packagingFee)}`;
+    }
+    if (deliveryFee > 0) {
+      message += `\n🛵 *Domicilio en Pasto:* ${formatCOP(deliveryFee)}`;
+    }
+    message += `\n💰 *Total a pagar:* ${formatCOP(productTotal + deliveryFee + packagingFee)}`;
   } else {
     message += `\n💰 *Total a pagar:* ${formatCOP(productTotal)}`;
   }
@@ -65,7 +71,8 @@ export function buildCartWhatsAppUrl(
   deliveryFee: number = 4000,
   selectedBarrio?: string,
   customerAddress?: string,
-  customerName?: string
+  customerName?: string,
+  packagingFee: number = 1000
 ): string {
   const cleanPhone = phone.replace(/\D/g, "");
   let message = `¡Hola Rincón Dulce! 👋 Quiero hacer el siguiente pedido:\n\n`;
@@ -87,13 +94,17 @@ export function buildCartWhatsAppUrl(
 
   message += `\n📦 *Subtotal productos:* ${formatCOP(subtotal)}`;
   
+  if (packagingFee > 0) {
+    message += `\n🥡 *Empaque:* ${formatCOP(packagingFee)}`;
+  }
+
   if (deliveryFee > 0) {
     const barrioLabel = selectedBarrio ? ` (${selectedBarrio})` : "";
     message += `\n🛵 *Domicilio en Pasto${barrioLabel}:* ${formatCOP(deliveryFee)}`;
-    message += `\n💵 *Total con domicilio:* ${formatCOP(subtotal + deliveryFee)}`;
-  } else {
-    message += `\n💵 *Total a pagar:* ${formatCOP(subtotal)}`;
   }
+
+  const grandTotal = subtotal + deliveryFee + packagingFee;
+  message += `\n💵 *Total con domicilio y empaque:* ${formatCOP(grandTotal)}`;
 
   if (customerNote && customerNote.trim()) {
     message += `\n📝 *Nota:* ${customerNote.trim()}`;

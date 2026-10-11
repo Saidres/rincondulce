@@ -11,12 +11,14 @@ import { NeighborhoodTariff } from "@/lib/types";
 interface CartDrawerProps {
   whatsappNumber: string;
   deliveryFee?: number;
+  packagingFee?: number;
   neighborhoodTariffs?: NeighborhoodTariff[];
 }
 
 export default function CartDrawer({
   whatsappNumber,
   deliveryFee = 4000,
+  packagingFee = 1000,
   neighborhoodTariffs = [],
 }: CartDrawerProps) {
   const {
@@ -58,7 +60,8 @@ export default function CartDrawer({
       currentDeliveryFee,
       finalBarrio,
       customerAddress,
-      customerName
+      customerName,
+      packagingFee
     );
     window.open(url, "_blank");
   };
@@ -314,6 +317,12 @@ export default function CartDrawer({
                 <span>Subtotal productos:</span>
                 <span className="font-bold text-[#2B120E]">{formatCOP(totalPrice)}</span>
               </div>
+              {packagingFee > 0 && (
+                <div className="flex justify-between items-center text-amber-900">
+                  <span className="font-medium">🥡 Costo de empaque:</span>
+                  <span className="font-bold">{formatCOP(packagingFee)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-[#7A1E1E]">
                 <span className="font-semibold">
                   🛵 Domicilio Pasto ({selectedBarrio === "other" ? (customBarrio || "Otro") : selectedBarrio}):
@@ -327,7 +336,7 @@ export default function CartDrawer({
                 Total a Pagar:
               </span>
               <span className="font-display text-2xl font-black text-[#2B120E]">
-                {formatCOP(totalPrice + currentDeliveryFee)}
+                {formatCOP(totalPrice + currentDeliveryFee + packagingFee)}
               </span>
             </div>
 

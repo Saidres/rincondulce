@@ -58,14 +58,16 @@ CREATE TABLE IF NOT EXISTS public.business_settings (
     schedule_text TEXT NOT NULL DEFAULT 'Martes a Domingo: 2:00 PM - 9:00 PM',
     delivery_zones TEXT NOT NULL DEFAULT 'Cobertura en toda la zona urbana de Pasto: Centro, Maridiaz, Pandiaco, Morasurco, Tamasagra, Palermo y alrededores.',
     delivery_fee NUMERIC(10, 2) NOT NULL DEFAULT 4000.00,
+    packaging_fee NUMERIC(10, 2) NOT NULL DEFAULT 1000.00,
     address_text TEXT DEFAULT 'Pasto, Nariño, Colombia',
     maps_url TEXT DEFAULT 'https://maps.google.com/?q=Cra.+31c+No.+18-44+Las+Cuadras,+Pasto,+Nari%C3%B1o',
     is_open_now BOOLEAN NOT NULL DEFAULT true,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Migración segura por si la tabla ya existía sin maps_url:
+-- Migraciones seguras por si la tabla ya existía:
 ALTER TABLE public.business_settings ADD COLUMN IF NOT EXISTS maps_url TEXT;
+ALTER TABLE public.business_settings ADD COLUMN IF NOT EXISTS packaging_fee NUMERIC(10, 2) DEFAULT 1000.00;
 
 -- 6. POLÍTICAS DE SEGURIDAD A NIVEL DE FILA (Row Level Security - RLS)
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;

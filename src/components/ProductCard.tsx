@@ -12,6 +12,7 @@ interface ProductCardProps {
   whatsappNumber: string;
   allToppings: Topping[];
   deliveryFee?: number;
+  packagingFee?: number;
 }
 
 export default function ProductCard({
@@ -19,6 +20,7 @@ export default function ProductCard({
   whatsappNumber,
   allToppings,
   deliveryFee = 4000,
+  packagingFee = 1000,
 }: ProductCardProps) {
   const { addItem } = useCart();
   const [selectedOption, setSelectedOption] = useState<string | undefined>(
@@ -60,7 +62,8 @@ export default function ProductCard({
     product,
     selectedOption,
     selectedToppings,
-    deliveryFee
+    deliveryFee,
+    packagingFee
   );
 
   return (

@@ -118,6 +118,7 @@ export async function getBusinessSettings(): Promise<BusinessSettings> {
       ...initialSettings,
       ...data,
       delivery_fee: data.delivery_fee ? Number(data.delivery_fee) : initialSettings.delivery_fee,
+      packaging_fee: data.packaging_fee ? Number(data.packaging_fee) : (initialSettings.packaging_fee ?? 1000),
       neighborhood_tariffs: tariffs,
       maps_url: data.maps_url || initialSettings.maps_url,
     } as BusinessSettings;
@@ -280,18 +281,32 @@ export async function adminUpdateSettings(settings: Partial<BusinessSettings>): 
     .select()
     .single();
 
-  // Si la tabla remota en Supabase aún no tiene la columna maps_url, reintentar sin ella
-  if (error && (error.message?.includes("maps_url") || error.details?.includes("maps_url") || (error as any).hint?.includes("maps_url"))) {
-    console.warn("La columna 'maps_url' no existe en 'business_settings'. Reintentando sin maps_url...");
-    const { maps_url: _discardMaps, ...fallbackPayload } = payload;
-    const retry = await supabase
-      .from("business_settings")
-      .upsert(fallbackPayload)
-      .select()
-      .single();
+  // Si la tabla remota en Supabase aún no tiene columnas como maps_url o packaging_fee, reintentar sin ellas
+  if (error) {
+    const errText = `${error.message || ""} ${error.details || ""} ${(error as any).hint || ""}`;
+    const fallbackPayload = { ...payload };
+    let shouldRetry = false;
 
-    data = retry.data;
-    error = retry.error;
+    if (errText.includes("maps_url")) {
+      delete fallbackPayload.maps_url;
+      shouldRetry = true;
+    }
+    if (errText.includes("packaging_fee")) {
+      delete fallbackPayload.packaging_fee;
+      shouldRetry = true;
+    }
+
+    if (shouldRetry) {
+      console.warn("Reintentando guardar ajustes omitiendo columnas no presentes en el esquema cache...");
+      const retry = await supabase
+        .from("business_settings")
+        .upsert(fallbackPayload)
+        .select()
+        .single();
+
+      data = retry.data;
+      error = retry.error;
+    }
   }
 
   if (error) throw error;
@@ -299,6 +314,7 @@ export async function adminUpdateSettings(settings: Partial<BusinessSettings>): 
   return {
     ...data,
     maps_url: settings.maps_url ?? data?.maps_url ?? initialSettings.maps_url,
+    packaging_fee: settings.packaging_fee ?? data?.packaging_fee ?? initialSettings.packaging_fee ?? 1000,
     neighborhood_tariffs: neighborhood_tariffs || initialNeighborhoodTariffs,
   } as BusinessSettings;
 }
@@ -363,8 +379,11 @@ export async function adminSeedDatabase(): Promise<{ success: boolean; message: 
     .from("business_settings")
     .upsert(payloadSettings, { onConflict: "id" });
 
-  if (setErr && (setErr.message?.includes("maps_url") || setErr.details?.includes("maps_url") || (setErr as any).hint?.includes("maps_url"))) {
-    delete payloadSettings.maps_url;
+  if (setErr) {
+    const errText = `${setErr.message || ""} ${setErr.details || ""} ${(setErr as any).hint || ""}`;
+    if (errText.includes("maps_url")) delete payloadSettings.maps_url;
+    if (errText.includes("packaging_fee")) delete payloadSettings.packaging_fee;
+
     const retry = await supabase
       .from("business_settings")
       .upsert(payloadSettings, { onConflict: "id" });

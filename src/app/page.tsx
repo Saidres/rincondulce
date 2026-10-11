@@ -52,6 +52,7 @@ export default async function HomePage() {
         toppings={toppings}
         whatsappNumber={settings.whatsapp_number}
         deliveryFee={settings.delivery_fee}
+        packagingFee={settings.packaging_fee ?? 1000}
       />
 
       {/* Toppings Showcase Section */}
@@ -86,6 +87,7 @@ export default async function HomePage() {
       <CartDrawer
         whatsappNumber={settings.whatsapp_number}
         deliveryFee={settings.delivery_fee}
+        packagingFee={settings.packaging_fee ?? 1000}
         neighborhoodTariffs={settings.neighborhood_tariffs || []}
       />
     </main>

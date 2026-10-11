@@ -295,6 +295,7 @@ export const initialSettings: BusinessSettings = {
   schedule_text: "Martes a Viernes: 3:00 PM - 8:00 PM | Sábados, Domingos y Festivos: 11:00 AM - 8:00 PM",
   delivery_zones: "Cobertura en toda la zona urbana de Pasto: Las Cuadras, Centro, Maridiaz, Pandiaco, Morasurco, Palermo, Tamasagra y alrededores.",
   delivery_fee: 4000,
+  packaging_fee: 1000,
   address_text: "Cra. 31c No. 18-44 Las Cuadras, San Juan de Pasto",
   maps_url: "https://maps.google.com/?q=Cra.+31c+No.+18-44+Las+Cuadras,+Pasto,+Nari%C3%B1o",
   neighborhood_tariffs: initialNeighborhoodTariffs,

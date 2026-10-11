@@ -53,6 +53,7 @@ export interface BusinessSettings {
   schedule_text: string;
   delivery_zones: string;
   delivery_fee: number;
+  packaging_fee?: number;
   address_text?: string | null;
   maps_url?: string | null;
   neighborhood_tariffs?: NeighborhoodTariff[];

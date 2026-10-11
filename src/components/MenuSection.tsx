@@ -12,6 +12,7 @@ interface MenuSectionProps {
   toppings: Topping[];
   whatsappNumber: string;
   deliveryFee?: number;
+  packagingFee?: number;
 }
 
 export default function MenuSection({
@@ -20,6 +21,7 @@ export default function MenuSection({
   toppings,
   whatsappNumber,
   deliveryFee = 4000,
+  packagingFee = 1000,
 }: MenuSectionProps) {
   const [activeCategory, setActiveCategory] = useState("all");
 
@@ -82,6 +84,7 @@ export default function MenuSection({
                 whatsappNumber={whatsappNumber}
                 allToppings={toppings}
                 deliveryFee={deliveryFee}
+                packagingFee={packagingFee}
               />
             ))}
           </div>
